@@ -1,0 +1,17 @@
+# Data & outputs (not versioned)
+kesitler/
+analiz_cikti/
+istatistik_analiz/
+*_SONUCLAR/
+*.csv
+*.docx
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db
