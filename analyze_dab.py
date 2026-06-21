@@ -17,17 +17,19 @@ def imagej_color_deconvolution(rgb_img):
     deconvolved = np.dot(od, inverse_matrix)
     return deconvolved
 
-def analyze_h_score(image_path, base_thresh=0.22):
+def analyze_h_score(image_path, base_thresh=0.28):
     try:
         img = io.imread(image_path)
         if img.shape[-1] == 4:
             img = color.rgba2rgb(img)
-            
+
         deconvolved = imagej_color_deconvolution(img)
         dab_od = np.maximum(deconvolved[:, :, 1], 0)
-        
+
         # Yoğunluk Sınıflandırması (Thresholds)
-        # 0.22 altı negatif kabul ediliyor (base_thresh)
+        # base_thresh altı negatif (arka plan) kabul ediliyor
+        # 0.28 seçildi: eşik karşılaştırma analizinde (n=421) 0.22'nin
+        # arka plan sinyalini pozitif saydığı gösterildi (threshold_comparison.py)
         weak_mask = (dab_od >= base_thresh) & (dab_od < 0.35)
         mod_mask = (dab_od >= 0.35) & (dab_od < 0.50)
         strong_mask = (dab_od >= 0.50)
@@ -64,7 +66,7 @@ def analyze_h_score(image_path, base_thresh=0.22):
 def main():
     input_folder = 'kesitler'
     output_plots = 'analiz_cikti'
-    MY_THRESHOLD = 0.22 
+    MY_THRESHOLD = 0.28  # güncellendi: 0.22 → 0.28 (threshold_comparison.py, 2026-06-21)
     
     if not os.path.exists(output_plots):
         os.makedirs(output_plots)
@@ -99,7 +101,7 @@ def main():
             plt.subplot(1, 2, 2)
             # Yoğunluk haritası oluştur (0: Arka plan, 1: Zayıf, 2: Orta, 3: Güçlü)
             h_map = np.zeros_like(data['dab_od'])
-            h_map[data['dab_od'] >= 0.22] = 1
+            h_map[data['dab_od'] >= MY_THRESHOLD] = 1
             h_map[data['dab_od'] >= 0.35] = 2
             h_map[data['dab_od'] >= 0.50] = 3
             plt.imshow(h_map, cmap='YlOrRd')
