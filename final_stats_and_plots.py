@@ -9,51 +9,37 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-# Directories
-base_path = '/Users/erdalbalcan/midye_lektin_olcum'
-sonuclar_dirs = ['ALSANCAK_SONUCLAR', 'PASAPORT_SONUCLAR', 'URLA_SONUCLAR']
-output_dir = os.path.join(base_path, 'istatistik_analiz')
+# ── Eşik (threshold) ──────────────────────────────────────────────────────
+# 0.22 → 0.28 güncellendi (2026-06-21).
+# Gerekçe: threshold_comparison.py ile yapılan n=421 karşılaştırmasında
+# 0.22 OD'nin lektin histokimyasında arka plan sinyalini pozitif saydığı
+# gösterildi. 0.28, WGA biyolojik sinyalini korurken SNA/MAL'daki
+# non-spesifik boyanmayı ~%45-55 azaltıyor.
+THRESHOLD = 0.28
 
-all_data = []
+# ── Veri kaynağı ──────────────────────────────────────────────────────────
+# threshold_comparison.csv: tüm lektin görüntüleri (n=421) 0.22/0.28/0.30
+# eşikleriyle analiz edilmiş. THRESHOLD=0.28 satırları kullanılır.
+BASE_PATH = os.path.dirname(os.path.abspath(__file__))
+COMPARISON_CSV = os.path.join(BASE_PATH, 'threshold_comparison.csv')
+output_dir = os.path.join(BASE_PATH, 'istatistik_analiz')
 
-print("Reading files...")
-for sdir in sonuclar_dirs:
-    dir_path = os.path.join(base_path, sdir)
-    if not os.path.exists(dir_path):
-        continue
-    
-    files = [f for f in os.listdir(dir_path) if f.endswith('.csv')]
-    for file in files:
-        name_no_ext = file.replace('.csv', '')
-        parts = name_no_ext.split('_')
-        region = parts[3].upper()
-        
-        if 'GONAD_DISI' in name_no_ext.upper():
-            tissue = 'GONAD_DISI'
-            lectin = parts[-1].upper()
-        elif 'GONAD_ERKEK' in name_no_ext.upper():
-            tissue = 'GONAD_ERKEK'
-            lectin = parts[-1].upper()
-        else:
-            tissue = parts[4].upper()
-            lectin = parts[5].upper()
-            
-        file_path = os.path.join(dir_path, file)
-        try:
-            df = pd.read_csv(file_path, sep=';', decimal=',')
-            df['Region'] = region
-            df['Tissue'] = tissue
-            df['Lectin'] = lectin
-            all_data.append(df)
-        except Exception as e:
-            print(f"Error reading {file}: {e}")
+print(f"Veri okunuyor (eşik={THRESHOLD})...")
 
-if not all_data:
-    print("No data found!")
-    exit()
+if not os.path.exists(COMPARISON_CSV):
+    print(f"HATA: {COMPARISON_CSV} bulunamadı.")
+    print("Önce threshold_comparison.py çalıştırın.")
+    exit(1)
 
-full_df = pd.concat(all_data, ignore_index=True)
-full_df['Tissue_Group'] = full_df['Tissue'].apply(lambda x: 'GONAD' if 'GONAD' in x else x)
+raw = pd.read_csv(COMPARISON_CSV, sep=';', decimal=',')
+full_df = raw[raw['Threshold'] == THRESHOLD].copy()
+full_df = full_df.rename(columns={'H_Score': 'H_Score', 'Tissue': 'Tissue_Group'})
+full_df['Tissue_Group'] = full_df['Tissue_Group'].apply(
+    lambda x: 'GONAD' if 'GONAD' in str(x).upper() else x
+)
+
+print(f"Toplam kayıt: {len(full_df)} | Bölgeler: {sorted(full_df['Region'].unique())} | "
+      f"Lektinler: {sorted(full_df['Lectin'].unique())}")
 
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
